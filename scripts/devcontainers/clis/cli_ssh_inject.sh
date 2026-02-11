@@ -4,7 +4,7 @@ set -euo pipefail
 echo "=== ssh inject for devcontainer: start (stdin mode) ==="
 
 # repo root
-REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$REPO_ROOT"
 
 WORKSPACE_DIR="${WORKSPACE_DIR:-.}"
@@ -62,5 +62,9 @@ echo \"OK: injected -> \$AUTH_KEYS\"
 ls -la \"\$SSH_DIR\"
 tail -n 2 \"\$AUTH_KEYS\" || true
 "
+
+echo "=== old host_key delete script run ==="
+ssh-keygen -f ~/.ssh/known_hosts_devc -R "[localhost]:2222"
+echo "=== old host_key delete script: done ==="
 
 echo "=== ssh inject for devcontainer: done ==="

@@ -1,0 +1,4 @@
+# docker/compose.base.yaml
+# NOTE:
+# - This file is NOT used by devcontainer directly
+# - Intended as a base reference for CI / prod compose files

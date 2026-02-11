@@ -21,7 +21,7 @@ Neovim ユーザーと VS Code / Cursor / JetBrains 系ユーザーの **開発�
 - mailpit（mail）
 - minio（S3互換オブジェクトストレージ）
 
-### Neovim ユーザー向けスクリプト（`scripts/devcontainers/`）
+### Neovim ユーザー向けスクリプト（`scripts/devcontainers/clis/`）
 - `cli_up.sh`：通常起動（必要な mount / 付加 features / ssh鍵注入）
 - `cli_rebuild.sh`：環境変更があった時の作り直し
 - `cli_down.sh`：停止
@@ -68,14 +68,14 @@ Dockerfile / compose.yaml / devcontainer 設定を変更した後は `rebuild` �
 
 実行例:
 ```
-./scripts/devcontainers/cli_rebuild.sh
+./scripts/devcontainers/clis/cli_rebuild.sh
 ```
 
 `NO_CACHE=1` を付けると no-cache rebuild します。
 
 実行例:
 ```
-NO_CACHE=1 ./scripts/devcontainers/cli_rebuild.sh
+NO_CACHE=1 ./scripts/devcontainers/clis/cli_rebuild.sh
 ```
 
 ### 3.2 通常起動
@@ -83,7 +83,7 @@ NO_CACHE=1 ./scripts/devcontainers/cli_rebuild.sh
 
 実行例:
 ```
-./scripts/devcontainers/cli_up.sh
+./scripts/devcontainers/clis/cli_up.sh
 ```
 
 ### 3.3 SSH 接続（Neovim ユーザー）
@@ -111,12 +111,65 @@ SSH で入った後、ラッパー（例：`nvim-devc`）で起動します。
 
 実行例:
 ```
-nvim-devc
+nvim-devc .
 ```
 
 ---
 
-## 補足事項
+## 4. post_create_command.sh（テンプレ用）
+
+### ポイント
+- 実際の uv / pnpm インストールは行わない  
+- ログ出力のみで処理が実行されたことを確認可能  
+- 冪等性あり（再実行しても同じ処理は行われない）
+
+実行例:
+```
+./scripts/devcontainers/post_create_command.sh
+# => "postCreate command running..." がログに出力されます
+```
+
+### 必要に応じて
+- 各自の環境に合わせてパッケージ追加や初期化コマンドを追記可能
+
+---
+
+## 5. git 操作
+
+### 5.1 ホスト側 git
+- `.devcontainer/compose.yaml` や `.env` などはホストリポジトリで管理
+- `git add/commit/push` はホスト側で行う
+
+例:
+```
+git status
+git add .
+git commit -m "Update devcontainer template"
+git push
+```
+
+### 5.2 コンテナ内 git（workspace）
+- ssh で workspace コンテナに入った上で作業可能
+
+例:
+```
+ssh devc-app
+cd /workspaces/app
+git status
+git add .
+git commit -m "Test commit from container"
+git push
+```
+
+### 5.3 Neovim 内 git操作（LazyVim 補助）
+- `gitsigns.nvim` で diff / blame を確認  
+- `vim-dadbod-completion` などで DB 関連補助  
+- `:Gwrite`, `:Gcommit` など vim 内 git コマンドはプラグイン依存  
+- 大規模変更や push はホストターミナル推奨
+
+---
+
+## 6. 補足事項
 
 ### Neovim 設定ファイルに関して
 本テンプレートは **XDG Base Directory** に沿った Neovim 設定配置を前提にし、ホストの設定をコンテナへ mount して利用します。  
@@ -138,56 +191,45 @@ exec nvim "$@"
 EOF
 ```
 
-### devcontainer cli スクリプトに関して
+### devcontainer CLI スクリプトに関して
 `cli_up.sh` および `cli_rebuild.sh` 内の `devcontainer up` オプションは、環境に合わせて適宜調整してください。
 
 例（`cli_up.sh` 抜粋）:
 ```
-devcontainer up --workspace-folder "$WORKSPACE_DIR" \
-  --skip-post-create \
-  --default-user-env-probe none \
-  --skip-non-blocking-commands \
-  --additional-features '{
-    "ghcr.io/devcontainers/features/sshd:1": {},
-    "ghcr.io/duduribeiro/devcontainer-features/neovim:1": { "version": "stable" }
-  }' \
+ADDITIONAL_FEATURES_JSON=$(mktemp)
+cat >"$ADDITIONAL_FEATURES_JSON" <<'EOF'
+{
+  "ghcr.io/devcontainers/features/sshd:1": {},
+  "ghcr.io/stu-bell/devcontainer-features/neovim:0": {}
+}
+EOF
+
+ARGS=(
+  --workspace-folder "$WORKSPACE_DIR"
+  --skip-post-create
+  --additional-features "$(<"$ADDITIONAL_FEATURES_JSON")"
   --mount "type=bind,source=${NVIM_CONFIG_DIR},target=/nvim-config/nvim"
+  --log-level trace
+)
+~~ 中略~~
+
+# --- devcontainer up exec ---
+devcontainer up "${ARGS[@]}" 2>&1 | tee -a "$LOG_FILE" &
+
 ```
 
 ---
 
-## 4. 注意事項 / トレードオフ
+## 7. 注意事項 / トレードオフ
 
-### 4.1 セキュリティ（SSH 鍵 mount について）
+### 7.1 セキュリティ（SSH 鍵 mount について）
 本テンプレートは、Neovim ユーザーが SSH で入れる利便性を優先し、公開鍵注入を自動化しています。
 
-- `cli_ssh_inject.sh` で **公開鍵**を `authorized_keys` に注入します
-- **秘密鍵をコンテナに mount しない**運用を推奨します（公開鍵のみ）
+- `cli_ssh_inject.sh` で **公開鍵**を `authorized_keys` に注入
+- **秘密鍵をコンテナに mount しない**運用を推奨します
 
-### 4.2 host key 警告（REMOTE HOST IDENTIFICATION HAS CHANGED）
-`docker compose down -v` やコンテナ作り直しで **sshd の host key（/etc/ssh/ssh_host_*）が変わる**ため、SSH の known_hosts 警告が出ることがあります。  
-その場合は該当エントリを削除して再接続してください。
 
-例（`known_hosts_devc` を使っている場合）:
-```
-ssh-keygen -f ~/.ssh/known_hosts_devc -R "[localhost]:2222"
-```
-
-### 4.3 Neovim データ領域（権限問題）
-初回やボリューム作り直し直後に、Neovim のデータ領域が root 所有になり、Permission denied が出ることがあります（例：lazy.nvim clone 時）。
-
-- 対策：ownership を `vscode` に揃える（スクリプト側で自動化推奨）
-- 対象例：`/home/vscode/.local/share-nvim-devc` など
-
-手動で直す例:
-```
-sudo chown -R vscode:vscode \
-  /home/vscode/.local/share-nvim-devc \
-  /home/vscode/.local/state-nvim-devc \
-  /home/vscode/.cache-nvim-devc
-```
-
-### 4.4 初回セットアップ時の Mason / Treesitter 競合
+### 7.2 初回セットアップ時の Mason / Treesitter 競合
 初回起動時に Mason / Treesitter のインストールが並列で走り、以下のようなメッセージが出ることがあります。
 
 - `Package is already installing`
@@ -196,14 +238,14 @@ sudo chown -R vscode:vscode \
 - 一度 `:qa` で終了 → 再起動で収束する場合が多い
 - 必要なら Mason の tmp/state を削除してやり直す
 
-### 4.5 “閉じた開発環境” と “編集体験” のバランス
+### 7.3 “閉じた開発環境” と “編集体験” のバランス
 - **統一性**：言語ランタイム・formatter・linter・test はコンテナに寄せやすい（再現性が高い）
 - **編集体験**：Neovim をホストで使うため、SSH / mount / 権限などの摩擦が発生し得る
 - 本テンプレートは「統一性を維持しつつ、Neovim の編集体験も残す」落とし所を狙っています
 
 ---
 
-## ディレクトリ構成（例）
+## 8. ディレクトリ構成（例）
 
 例:
 ```
@@ -212,13 +254,15 @@ sudo chown -R vscode:vscode \
 ├── docker/
 │   ├── compose.yaml
 │   └── services/
-├── scripts/
-│   └── devcontainers/
-│       ├── cli_up.sh
-│       ├── cli_rebuild.sh
-│       ├── cli_ssh_inject.sh
-│       ├── cli_down.sh
-│       └── cli_reset.sh
+        └── scripts
+            └── devcontainers
+                ├── clis
+                │   ├── cli_down.sh
+                │   ├── cli_rebuild.sh
+                │   ├── cli_reset.sh
+                │   ├── cli_ssh_inject.sh
+                │   └── cli_up.sh
+                └── post_create_command.sh
 └── README.md
 ```
 

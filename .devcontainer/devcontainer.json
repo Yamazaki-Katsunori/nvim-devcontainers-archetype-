@@ -1,18 +1,29 @@
 {
   "name": "nvim-archetype",
-
-  "dockerComposeFile": ["../docker/compose.yaml"],
-
+  "dockerComposeFile": [
+    "compose.yaml"
+  ],
   "service": "workspace",
   "workspaceFolder": "/workspaces/app",
+  "runArgs": [
+    "--env-file",
+    ".devcontainer/.env"
+  ],
   "shutdownAction": "stopCompose",
-
-  "features": {},
-
+  "features": {
+    // sample features for python and uv / node
+    // "ghcr.io/devcontainers/features/python:1": {
+    //   "version": "3.14",
+    //   "installTools": true
+    // },
+    // "ghcr.io/devcontainers-extra/features/uv:1": {},
+    // "ghcr.io/devcontainers/features/node:1": {}
+  },
   "customizations": {
     "vscode": {
       "extensions": []
     }
-  }
-
+  },
+  "initializeCommand": "chmod +x scripts/devcontainers/*",
+  "postCreateCommand": "scripts/devcontainers/post_create_command.sh"
 }
