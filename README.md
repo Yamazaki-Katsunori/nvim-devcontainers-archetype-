@@ -136,7 +136,7 @@ nvim-devc .
 
 ## 5. git 操作
 
-### 5.1 ホスト側 git
+### 5.1 ssh側 git
 - `.devcontainer/compose.yaml` や `.env` などはホストリポジトリで管理
 - `git add/commit/push` はホスト側で行う
 
@@ -150,6 +150,24 @@ git push
 
 ### 5.2 コンテナ内 git（workspace）
 - ssh で workspace コンテナに入った上で作業可能
+- `devcontainer up` コマンドの引数 `--mount` を利用し、ホスト側の `.gitconfig` をマウントして実現している
+
+[cli_up.sh 抜粋]
+```sh
+
+HOST_GITCONFIG="${HOME}/.gitconfig"
+
+ARGS=(
+  --workspace-folder "$WORKSPACE_DIR"
+  --skip-post-create
+  --additional-features "$(<"$ADDITIONAL_FEATURES_JSON")"
+  --mount "type=bind,source=${NVIM_CONFIG_DIR},target=/nvim-config/nvim"
+  --mount "type=bind,source=${HOST_GITCONFIG},target=/home/vscode/.gitconfig"
+  --log-level trace
+)
+
+devcontainer up "${ARGS[@]}" 2>&1 | tee -a "$LOG_FILE" &
+```
 
 例:
 ```
@@ -245,25 +263,61 @@ devcontainer up "${ARGS[@]}" 2>&1 | tee -a "$LOG_FILE" &
 
 ---
 
-## 8. ディレクトリ構成（例）
+## 8. ディレクトリ構成
 
-例:
+tree
 ```
 .
-├── .devcontainer/
-├── docker/
-│   ├── compose.yaml
-│   └── services/
-        └── scripts
-            └── devcontainers
-                ├── clis
-                │   ├── cli_down.sh
-                │   ├── cli_rebuild.sh
-                │   ├── cli_reset.sh
-                │   ├── cli_ssh_inject.sh
-                │   └── cli_up.sh
-                └── post_create_command.sh
-└── README.md
+├── .devcontainer
+│   ├── .env
+│   ├── .env.example
+│   ├── compose.yaml
+│   └── devcontainer.json
+├── .github
+│   └── workflows
+│       └── ci.yaml
+├── .gitignore
+├── .pre-commit-config.yaml
+├── .vscode
+│   ├── extensions.json
+│   ├── launch.json
+│   ├── settings.json
+│   └── tasks.json
+├── backend
+│   └── README.md
+├── docker
+│   ├── compose.base.yaml
+│   ├── README.md
+│   └── services
+│       ├── db
+│       │   └── README.md
+│       ├── mail
+│       ├── minio
+│       ├── redis
+│       ├── web
+│       │   └── nginx
+│       └── workspace
+│           ├── Dockerfile
+│           └── README.md
+├── docs
+│   ├── customization.md
+│   ├── getting-started.md
+│   ├── philosophy.md
+│   └── structure.md
+├── frontend
+│   ├── .npmrc
+│   └── README.md
+├── README.md
+└── scripts
+    └── devcontainers
+        ├── clis
+        │   ├── cli_down.sh
+        │   ├── cli_rebuild.sh
+        │   ├── cli_reset.sh
+        │   ├── cli_ssh_inject.sh
+        │   └── cli_up.sh
+        └── post_create_command.sh
+
 ```
 
 ---
