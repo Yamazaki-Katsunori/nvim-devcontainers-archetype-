@@ -322,6 +322,20 @@ tree
 
 ---
 
+## サンプルに関して
+
+下記に `post_create_command.sh` と `devcontainer-features` の利用例をまとめています。
+ご参考いただければ幸いです。
+
+#### 利用例 Docs
+
+[./docs/exapmle-usage/post_create_command.md] (post_create_command.sh の利用例)
+
+[./docs/exapmle-usage/devcontainer-features-example.md] (devcontainer-features の利用例)
+
+
+---
+
 ## License
 
 License: Not specified yet (no license grant at this time).  
