@@ -327,9 +327,9 @@ tree
 下記に `post_create_command.sh` と `devcontainer-features` の利用例をまとめています。
 ご参考いただければ幸いです。
 
-#### 利用例 Docs
+### 利用例
 
-[post_create_command.sh 利用例](./docs/exapmle-usage/post_create_command.md])
+[post_create_command.sh 利用例](./docs/exapmle-usage/post_create_command.md)
 
 [devcontainer-features 利用例](./docs/exapmle-usage/devcontainer-features-example.md)
 
