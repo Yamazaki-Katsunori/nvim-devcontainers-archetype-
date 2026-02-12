@@ -329,9 +329,9 @@ tree
 
 #### 利用例 Docs
 
-[./docs/exapmle-usage/post_create_command.md] (post_create_command.sh の利用例)
+[post_create_command.sh 利用例](./docs/exapmle-usage/post_create_command.md])
 
-[./docs/exapmle-usage/devcontainer-features-example.md] (devcontainer-features の利用例)
+[devcontainer-features 利用例](./docs/exapmle-usage/devcontainer-features-example.md)
 
 
 ---
