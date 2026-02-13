@@ -17,7 +17,7 @@
     //   "installTools": true
     // },
     // "ghcr.io/devcontainers-extra/features/uv:1": {},
-    // "ghcr.io/devcontainers/features/node:1": {}
+    "ghcr.io/devcontainers/features/node:1": {}
   },
   "customizations": {
     "vscode": {
