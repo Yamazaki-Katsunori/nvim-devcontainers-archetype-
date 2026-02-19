@@ -1,14 +1,9 @@
 {
   "name": "nvim-archetype",
-  "dockerComposeFile": [
-    "compose.yaml"
-  ],
+  "dockerComposeFile": ["compose.yaml"],
   "service": "workspace",
   "workspaceFolder": "/workspaces/app",
-  "runArgs": [
-    "--env-file",
-    ".devcontainer/.env"
-  ],
+  "runArgs": ["--env-file", ".devcontainer/.env"],
   "shutdownAction": "stopCompose",
   "features": {
     // sample features for python and uv / node
@@ -24,6 +19,5 @@
       "extensions": []
     }
   },
-  "initializeCommand": "chmod +x scripts/devcontainers/*",
-  "postCreateCommand": "scripts/devcontainers/post_create_command.sh"
+  "postCreateCommand": "bash scripts/devcontainers/post_create_command.sh"
 }

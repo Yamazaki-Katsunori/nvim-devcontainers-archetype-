@@ -1,34 +1,32 @@
 services:
-  # =====================
+  # =============================================================================
   # Database options
-  # =====================
+  # =============================================================================
   # SQLite:
   #   - No db service required
-  #   - Use file-based DB
+  #   - Use file-based DB (mounted volume)
   #
+  # Example:
   #   DB_CONNECTION=sqlite
   #   DB_DATABASE=/workspaces/app/.data/app.sqlite
   #
-  # PostgreSQL: use db service below
-  # MariaDB: uncomment alternative db service
+  # PostgreSQL: use `db` service below (default)
+  # MariaDB: uncomment alternative `db` service (optional section)
 
-
-  # =====================
+  # =============================================================================
   # Workspace (DevContainer)
-  # =====================
+  # =============================================================================
   workspace:
     build:
+      # NOTE:
+      # - compose file is in .devcontainer/
+      # - build context is ".devcontainer/" so Dockerfile path is relative to it
       context: .
       dockerfile: ../docker/services/workspace/Dockerfile
 
     volumes:
       # Project root (repo)
       - ..:/workspaces/app:cached
-
-      # Neovim isolated XDG dirs (persist across rebuilds)
-      - nvim-data:/home/vscode/.local/share-nvim-devc
-      - nvim-state:/home/vscode/.local/state-nvim-devc
-      - nvim-cache:/home/vscode/.cache-nvim-devc
 
       # SQLite (optional)
       # - sqlite-data:/workspaces/app/.data
@@ -38,21 +36,25 @@ services:
 
     environment:
       # --- Database ---
+      DB_CONNECTION: ${DB_CONNECTION:-pgsql}
       DB_HOST: ${DB_HOST:-db}
       DB_PORT: ${DB_PORT:-5432}
       DB_DATABASE: ${DB_DATABASE:-app}
       DB_USERNAME: ${DB_USERNAME:-app}
       DB_PASSWORD: ${DB_PASSWORD:-app}
 
-      # --- Redis / Valkey ---
+      # --- Redis / Valkey (optional) ---
+      # If you enable `valkey` service below, these defaults will work.
       REDIS_HOST: ${REDIS_HOST:-valkey}
       REDIS_PORT: ${REDIS_PORT:-6379}
 
-      # --- Mailpit ---
+      # --- Mailpit (optional) ---
+      # If you enable `mailpit` service below, these defaults will work.
       MAILPIT_HOST: ${MAILPIT_HOST:-mailpit}
       MAILPIT_PORT: ${MAILPIT_PORT:-1025}
 
-      # --- MinIO / S3 ---
+      # --- MinIO / S3 (optional) ---
+      # If you enable `minio` service below, these defaults will work.
       S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
@@ -62,23 +64,21 @@ services:
       # Remove db if using SQLite
       db:
         condition: service_healthy
-      valkey:
-        condition: service_healthy
-      mailpit:
-        condition: service_started
-      minio:
-        condition: service_healthy
+      # NOTE:
+      # - Optional services (valkey/mailpit/minio) are intentionally NOT listed here.
+      #   This keeps the template simple: workspace can start even when they are disabled.
 
-    ports:
-      # SSH into workspace (sshd feature uses 2222)
-      - "${SSH_PORT:-2222}:2222"
+    # NOTE:
+    # - SSH port publish is intentionally omitted (DevPod / Dev Containers are the entrypoints).
+    # - If you really need SSH port publish, add it in your project repo as you like.
+    # ports:
+    #   - "${SSH_PORT:-2222}:2222"
 
     restart: unless-stopped
 
-
-  # =====================
+  # =============================================================================
   # Web (Nginx)
-  # =====================
+  # =============================================================================
   web:
     image: nginx:1.27-alpine
 
@@ -94,10 +94,9 @@ services:
 
     restart: unless-stopped
 
-
-  # =====================
+  # =============================================================================
   # Database (PostgreSQL) [default]
-  # =====================
+  # =============================================================================
   db:
     image: postgres:17
 
@@ -110,10 +109,12 @@ services:
       - db-data:/var/lib/postgresql/data
 
     healthcheck:
-      test:
-        [
+      test: [
           "CMD-SHELL",
-          "pg_isready -U ${DB_USERNAME:-app} -d ${DB_DATABASE:-app} -h 127.0.0.1 -p ${DB_PORT:-5432}"
+          # NOTE:
+          # - inside the db container, postgres listens on 5432 by default
+          # - DB_PORT is for app connection settings, not for container internal port
+          "pg_isready -U ${DB_USERNAME:-app} -d ${DB_DATABASE:-app} -h 127.0.0.1 -p 5432",
         ]
       interval: 5s
       timeout: 3s
@@ -125,10 +126,9 @@ services:
     # ports:
     #   - "${DB_EXPOSE_PORT:-5432}:5432"
 
-
-  # =====================
+  # =============================================================================
   # Database (MariaDB) - Optional
-  # =====================
+  # =============================================================================
   # db:
   #   image: mariadb:11
   #
@@ -148,81 +148,103 @@ services:
   #     retries: 20
   #
   #   restart: unless-stopped
+  #
+  #   # If you want to access DB from host:
+  #   # ports:
+  #   #   - "${DB_EXPOSE_PORT:-3306}:3306"
 
+  # =============================================================================
+  # Valkey (Redis) - Optional (uncomment to enable)
+  # =============================================================================
+  # valkey:
+  #   image: valkey/valkey:8
+  #
+  #   volumes:
+  #     - valkey-data:/data
+  #
+  #   healthcheck:
+  #     test: ["CMD", "valkey-cli", "ping"]
+  #     interval: 5s
+  #     timeout: 3s
+  #     retries: 20
+  #
+  #   restart: unless-stopped
+  #
+  #   # If you want to access from host:
+  #   # ports:
+  #   #   - "${VALKEY_EXPOSE_PORT:-6379}:6379"
 
-  # =====================
-  # Valkey (Redis)
-  # =====================
-  valkey:
-    image: valkey/valkey:8
+  # =============================================================================
+  # Mailpit - Optional (uncomment to enable)
+  # =============================================================================
+  # mailpit:
+  #   image: axllent/mailpit:latest
+  #
+  #   ports:
+  #     - "${MAILPIT_UI_PORT:-8025}:8025"
+  #     - "${MAILPIT_SMTP_PORT:-1025}:1025"
+  #
+  #   restart: unless-stopped
 
-    volumes:
-      - valkey-data:/data
+  # =============================================================================
+  # MinIO (S3 compatible) - Optional (uncomment to enable)
+  # =============================================================================
+  # minio:
+  #   image: minio/minio:latest
+  #
+  #   command: server /data --console-address ":9001"
+  #
+  #   environment:
+  #     MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+  #     MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
+  #
+  #   ports:
+  #     - "${MINIO_API_PORT:-9000}:9000"
+  #     - "${MINIO_CONSOLE_PORT:-9001}:9001"
+  #
+  #   volumes:
+  #     - minio-data:/data
+  #
+  #   healthcheck:
+  #     test:
+  #       [
+  #         "CMD-SHELL",
+  #         "curl -fsS http://127.0.0.1:9000/minio/health/ready >/dev/null || exit 1"
+  #       ]
+  #     interval: 5s
+  #     timeout: 3s
+  #     retries: 30
+  #
+  #   restart: unless-stopped
 
-    healthcheck:
-      test: ["CMD", "valkey-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
-    restart: unless-stopped
-
-    # If you want to access from host:
-    # ports:
-    #   - "${VALKEY_EXPOSE_PORT:-6379}:6379"
-
-
-  # =====================
-  # Mailpit
-  # =====================
-  mailpit:
-    image: axllent/mailpit:latest
-
-    ports:
-      - "${MAILPIT_UI_PORT:-8025}:8025"
-      - "${MAILPIT_SMTP_PORT:-1025}:1025"
-
-    restart: unless-stopped
-
-
-  # =====================
-  # MinIO
-  # =====================
-  minio:
-    image: minio/minio:latest
-
-    command: server /data --console-address ":9001"
-
-    environment:
-      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
-
-    ports:
-      - "${MINIO_API_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
-
-    volumes:
-      - minio-data:/data
-
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "curl -fsS http://127.0.0.1:9000/minio/health/ready >/dev/null || exit 1"
-        ]
-      interval: 5s
-      timeout: 3s
-      retries: 30
-
-    restart: unless-stopped
-
-
+# =============================================================================
+# Volumes
+# =============================================================================
 volumes:
   # sqlite-data:
-  nvim-data:
-  nvim-state:
-  nvim-cache:
   db-data:
-  valkey-data:
-  minio-data:
+  # valkey-data:
+  # minio-data:
+
+# =============================================================================
+# Networks (Optional)
+# =============================================================================
+# NOTE:
+# - By default, Docker Compose creates a single network for this project automatically.
+# - Service-to-service communication works by service name (db, workspace, etc.) on that network.
+# - Keep it simple in the template; define networks only when you need segregation.
+#
+# Example (when you want network separation):
+#
+# networks:
+#   front:
+#   back:
+#
+# services:
+#   web:
+#     networks: [front, back]
+#   workspace:
+#     networks: [back]
+#   db:
+#     networks: [back]
 

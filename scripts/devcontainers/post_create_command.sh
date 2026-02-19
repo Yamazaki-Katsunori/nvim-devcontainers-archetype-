@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-LOG_FILE="${LOG_FILE:-/tmp/post_create_command.log}"
-POSTCREATE_MARKER="/var/tmp/devcontainer-postcreate.done"
+LOG_FILE="${LOG_FILE:-$HOME/.cache/devcontainer/post_create_command.log}"
+POSTCREATE_MARKER="${POSTCREATE_MARKER:-$HOME/.cache/devcontainer/postcreate.done}"
 
-log() {
-  echo "$@" | tee -a "$LOG_FILE"
-}
+mkdir -p "$(dirname "$LOG_FILE")"
+mkdir -p "$(dirname "$POSTCREATE_MARKER")"
+
+log() { echo "$@" | tee -a "$LOG_FILE"; }
 
 log "=== postCreate: start ==="
 log "log file: $LOG_FILE"
@@ -17,11 +18,9 @@ if [[ -f "$POSTCREATE_MARKER" ]]; then
   exit 0
 fi
 
-mkdir -p "$(dirname "$POSTCREATE_MARKER")"
-
 # --- Template processing ---
 log ">>> postCreate command running..."
-log ">>> (No actual uv/pnpm commands in template version)"
+log ">>> (Template: no project-specific installs)"
 
 #--- Completion Mark (Idempotency Check File Generation) ---
 touch "$POSTCREATE_MARKER"
