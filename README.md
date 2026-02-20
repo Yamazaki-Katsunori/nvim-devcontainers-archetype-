@@ -78,35 +78,114 @@ cp .devcontainer/.env.example .devcontainer/.env
 
 ### 4.2 Neovim（DevPod）
 
-#### 4.2.1 DevPod で起動（dotfiles 適用）
+Neovim ユーザーは DevPod を使って Dev Container に入り、`--dotfiles` で Neovim 設定やセットアップを揃える運用を想定します。
 
-例（イメージ）：
+> 補足：
+>
+> - DevPod は起動先（Provider）を選ぶ必要があります。ローカル環境では通常 `docker` を利用します。
+> - コンテナ内の作業ディレクトリは手動で `/workspaces/app` に移動してください（`cd /workspaces/app`）。
+
+---
+
+#### 4.2.1 DevPod 初回利用（Provider 設定が未実施の場合）
+
+1. Provider（Docker）を追加
 
 ```
-devpod up --dotfiles <あなたのdotfilesリポジトリ> .
+devpod provider add docker
 ```
 
-#### 4.2.2 DevPod でコンテナへ入る
-
-例（イメージ）：
+1. Provider（Docker）をデフォルトに設定
 
 ```
-devpod exec . -- bash
+devpod provider use docker
 ```
 
-（または `devpod ssh` など、利用している DevPod の接続方式に合わせてください）
+1. dotfiles を適用して起動
 
-#### 4.2.3 Neovim 起動
+```
+devpod up . --dotfiles <あなたのdotfilesリポジトリ>
+```
 
-コンテナ内で `nvim` を起動します。
+1. コンテナへ接続（SSH）
+
+```
+devpod ssh <workspace-name>
+```
+
+- `<workspace-name>` は `devpod ls` で確認できます。
+
+1. ワークスペースへ移動して Neovim 起動
 
 ```
 cd /workspaces/app
 nvim .
 ```
 
-> 以前の「SSH ポート公開（2222）」「公開鍵注入」「nvim ラッパー」等は採用しません。  
-> 入口を DevPod に統一することで、構成を単純化しています。
+---
+
+#### 4.2.2 DevPod 利用経験あり（Provider 設定済みの場合）
+
+1. Provider（Docker）を確認・切り替え（必要な場合のみ）
+
+```
+devpod provider use docker
+```
+
+1. dotfiles を適用して起動
+
+```
+devpod up . --dotfiles <あなたのdotfilesリポジトリ>
+```
+
+1. コンテナへ接続（SSH）
+
+```
+devpod ssh <workspace-name>
+```
+
+1. ワークスペースへ移動して Neovim 起動
+
+```
+cd /workspaces/app
+nvim .
+```
+
+---
+
+#### 4.2.3 ワークスペース名の確認（共通）
+
+```
+devpod ls
+```
+
+---
+
+#### 4.2.4 停止 / 削除（DevPod down 相当）
+
+1. コンテナから退出
+
+```
+exit
+```
+
+1. 停止（後で再開したい場合）
+
+```
+devpod stop <workspace-name>
+```
+
+1. 削除（作り直したい場合）
+
+```
+devpod delete <workspace-name>
+```
+
+- 強制削除したい場合：
+
+```
+devpod delete --force <workspace-name>
+```
 
 ---
 
